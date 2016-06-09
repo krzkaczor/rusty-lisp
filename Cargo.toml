@@ -1,0 +1,6 @@
+[package]
+name = "rusty_lisp"
+version = "0.1.0"
+authors = ["Krzysztof Kaczor <chris@kaczor.io>"]
+
+[dependencies]

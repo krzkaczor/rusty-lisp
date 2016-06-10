@@ -3,7 +3,7 @@ use rusty_lisp::tokenize;
 
 
 fn main() {
-    let input = r#" ( 123 456 abc )"#.to_string();
+    let input = r#" ( 123 456 abc )"#;
     tokenize(input)
 }
 

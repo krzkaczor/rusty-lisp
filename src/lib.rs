@@ -3,13 +3,13 @@ use regex::Regex;
 use std::string::String;
 
 #[derive(Debug)]
-pub enum TOKEN<'a> {
+pub enum TOKEN {
     Char(char),
-    String(&'a str),
-    SpecialChars(&'a str)
+    String(String),
+    SpecialChars(String)
 }
 
-fn advance<'a>(rest_input: &'a str) -> (String, TOKEN<'a>) {
+fn advance(rest_input: &str) -> (String, TOKEN) {
     let strings = Regex::new(r#"^"(?:\\.|[^\\"])*""#).unwrap();
     let special_character = Regex::new(r#"^[\[\]{}()'`~^@]"#).unwrap();
     let comment = Regex::new(r"^;.*").unwrap();
@@ -18,16 +18,16 @@ fn advance<'a>(rest_input: &'a str) -> (String, TOKEN<'a>) {
 
     let (to_skip, token) = if strings.is_match(rest_input) {
         let matched = strings.captures_iter(rest_input).next().unwrap().at(0).unwrap();
-        (matched.len(), TOKEN::String(matched))
+        (matched.len(), TOKEN::String(matched.to_string()))
     } else if special_character.is_match(rest_input) {
         let matched = special_character.captures_iter(rest_input).next().unwrap().at(0).unwrap().to_string();
         (matched.len(), TOKEN::Char(matched.chars().next().unwrap()))
     } else if comment.is_match(rest_input) {
         let matched = comment.captures_iter(rest_input).next().unwrap().at(0).unwrap().to_string();
-        (matched.len(), TOKEN::String("comment..."))
+        (matched.len(), TOKEN::String("comment...".to_string()))
     } else if special_chars.is_match(rest_input) {
         let matched = special_chars.captures_iter(rest_input).next().unwrap().at(0).unwrap();
-        (matched.len(), TOKEN::SpecialChars(matched))
+        (matched.len(), TOKEN::SpecialChars(matched.to_string()))
     } else {
         panic!("UNRECOGNIZED INPUT!");
     };
@@ -36,18 +36,22 @@ fn advance<'a>(rest_input: &'a str) -> (String, TOKEN<'a>) {
     (advanced_input, token)
 }
 
-pub fn tokenize(input: String) {
-    let mut rest_input: String = input.trim_left().to_string();
+pub fn tokenize(input: &str) {
+    let mut rest_input:String = input.trim_left().to_string();
     println!("tokenizing: {}", rest_input);
 
     while rest_input.len() != 0 {
         {
-            let rest_input_loc = {
-                let (s, token) = advance(rest_input.as_str()); //@todo fix me! remove string
-                println!("TOKEN {:?}", token);
-                s
-            };
-            rest_input = rest_input_loc.to_string().trim_left().to_string();
+            let (advanced_input, token) = advance(rest_input.as_str()); //@todo fix me! remove string
+            rest_input = advanced_input.trim_left().to_string();
+            println!("TOKEN {:?}", token);
+//            let local_input = rest_input.clone();
+//            let rest_input_loc = {
+//
+
+//                s
+//            };
+//            rest_input = rest_input_loc.trim_left();
         }
     }
     println!("tokenizing finished!")

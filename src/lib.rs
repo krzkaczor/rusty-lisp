@@ -2,34 +2,38 @@ extern crate regex;
 use regex::Regex;
 use std::string::String;
 
-fn advance(rest_input: String) -> String {
+#[derive(Debug)]
+pub enum TOKEN<'a> {
+    Char(char),
+    String(&'a str),
+    SpecialChars(&'a str)
+}
+
+fn advance<'a>(rest_input: &'a str) -> (String, TOKEN<'a>) {
     let strings = Regex::new(r#"^"(?:\\.|[^\\"])*""#).unwrap();
     let special_character = Regex::new(r#"^[\[\]{}()'`~^@]"#).unwrap();
     let comment = Regex::new(r"^;.*").unwrap();
     let special_chars = Regex::new(r#"^[^\s\[\]{}('"`,;)]*"#).unwrap();
 
 
-    let to_skip = if strings.is_match(rest_input.as_str()) {
-        let matched = strings.captures_iter(rest_input.as_str()).next().unwrap().at(0).unwrap().to_string();
-        println!("STRING TOKEN: {} length: {}", matched, matched.len());
-        matched.len()
-    } else if special_character.is_match(rest_input.as_str()) {
-        let matched = special_character.captures_iter(rest_input.as_str()).next().unwrap().at(0).unwrap().to_string();
-        println!("SPECIAL CHARACTER TOKEN: {} length: {}", matched, matched.len());
-        matched.len()
-    } else if comment.is_match(rest_input.as_str()) {
-        let matched = comment.captures_iter(rest_input.as_str()).next().unwrap().at(0).unwrap().to_string();
-        println!("COMMENT TOKEN: {} length: {}", matched, matched.len());
-        matched.len()
-    } else if special_chars.is_match(rest_input.as_str()) {
-        let matched = special_chars.captures_iter(rest_input.as_str()).next().unwrap().at(0).unwrap().to_string();
-        println!("SPECIAL CHARS TOKEN: {} length: {}", matched, matched.len());
-        matched.len()
+    let (to_skip, token) = if strings.is_match(rest_input) {
+        let matched = strings.captures_iter(rest_input).next().unwrap().at(0).unwrap();
+        (matched.len(), TOKEN::String(matched))
+    } else if special_character.is_match(rest_input) {
+        let matched = special_character.captures_iter(rest_input).next().unwrap().at(0).unwrap().to_string();
+        (matched.len(), TOKEN::Char(matched.chars().next().unwrap()))
+    } else if comment.is_match(rest_input) {
+        let matched = comment.captures_iter(rest_input).next().unwrap().at(0).unwrap().to_string();
+        (matched.len(), TOKEN::String("comment..."))
+    } else if special_chars.is_match(rest_input) {
+        let matched = special_chars.captures_iter(rest_input).next().unwrap().at(0).unwrap();
+        (matched.len(), TOKEN::SpecialChars(matched))
     } else {
         panic!("UNRECOGNIZED INPUT!");
     };
 
-    rest_input.chars().skip(to_skip).collect()
+    let advanced_input = rest_input.chars().skip(to_skip).collect();
+    (advanced_input, token)
 }
 
 pub fn tokenize(input: String) {
@@ -37,7 +41,14 @@ pub fn tokenize(input: String) {
     println!("tokenizing: {}", rest_input);
 
     while rest_input.len() != 0 {
-        rest_input = advance(rest_input).trim_left().to_string();
+        {
+            let rest_input_loc = {
+                let (s, token) = advance(rest_input.as_str()); //@todo fix me! remove string
+                println!("TOKEN {:?}", token);
+                s
+            };
+            rest_input = rest_input_loc.to_string().trim_left().to_string();
+        }
     }
     println!("tokenizing finished!")
 }

@@ -1,57 +1,48 @@
 extern crate regex;
 use regex::Regex;
-use std::string::String;
 
 #[derive(Debug)]
-pub enum TOKEN {
+pub enum TOKEN<'a> {
     Char(char),
-    String(String),
-    SpecialChars(String)
+    String(&'a str),
+    SpecialChars(&'a str)
 }
 
-fn advance(rest_input: &str) -> (String, TOKEN) {
+fn advance(rest_input: &str) -> (usize, TOKEN) {
     let strings = Regex::new(r#"^"(?:\\.|[^\\"])*""#).unwrap();
     let special_character = Regex::new(r#"^[\[\]{}()'`~^@]"#).unwrap();
     let comment = Regex::new(r"^;.*").unwrap();
     let special_chars = Regex::new(r#"^[^\s\[\]{}('"`,;)]*"#).unwrap();
 
 
-    let (to_skip, token) = if strings.is_match(rest_input) {
+    if strings.is_match(rest_input) {
         let matched = strings.captures_iter(rest_input).next().unwrap().at(0).unwrap();
-        (matched.len(), TOKEN::String(matched.to_string()))
+        (matched.len(), TOKEN::String(matched))
     } else if special_character.is_match(rest_input) {
-        let matched = special_character.captures_iter(rest_input).next().unwrap().at(0).unwrap().to_string();
+        let matched = special_character.captures_iter(rest_input).next().unwrap().at(0).unwrap();
         (matched.len(), TOKEN::Char(matched.chars().next().unwrap()))
     } else if comment.is_match(rest_input) {
-        let matched = comment.captures_iter(rest_input).next().unwrap().at(0).unwrap().to_string();
-        (matched.len(), TOKEN::String("comment...".to_string()))
+        let matched = comment.captures_iter(rest_input).next().unwrap().at(0).unwrap();
+        (matched.len(), TOKEN::String("comment..."))
     } else if special_chars.is_match(rest_input) {
         let matched = special_chars.captures_iter(rest_input).next().unwrap().at(0).unwrap();
-        (matched.len(), TOKEN::SpecialChars(matched.to_string()))
+        (matched.len(), TOKEN::SpecialChars(matched))
     } else {
         panic!("UNRECOGNIZED INPUT!");
-    };
-
-    let advanced_input = rest_input.chars().skip(to_skip).collect();
-    (advanced_input, token)
+    }
 }
 
 pub fn tokenize(input: &str) {
-    let mut rest_input:String = input.trim_left().to_string();
-    println!("tokenizing: {}", rest_input);
+    println!("tokenizing: {}", input);
+    let mut rest_input = input.trim_left();
 
     while rest_input.len() != 0 {
         {
-            let (advanced_input, token) = advance(rest_input.as_str()); //@todo fix me! remove string
-            rest_input = advanced_input.trim_left().to_string();
+            let (consumed, token) = advance(rest_input);
+//            println!("Move by {} bytes.", consumed);
+            rest_input = &rest_input[consumed..].trim_left();
+//            println!("Rest input size: {} bytes", rest_input.len());
             println!("TOKEN {:?}", token);
-//            let local_input = rest_input.clone();
-//            let rest_input_loc = {
-//
-
-//                s
-//            };
-//            rest_input = rest_input_loc.trim_left();
         }
     }
     println!("tokenizing finished!")

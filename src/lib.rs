@@ -9,6 +9,7 @@ pub enum TOKEN<'a> {
     SpecialChars(&'a str)
 }
 
+//@todo refactor. Regex should be staticly allocated.
 fn advance(rest_input: &str) -> (usize, Option<TOKEN>) {
     let white_characters = Regex::new(r"^([\s,])+").unwrap();
     let strings = Regex::new(r#"^"(?:\\.|[^\\"])*""#).unwrap();

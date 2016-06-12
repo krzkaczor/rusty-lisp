@@ -1,9 +1,9 @@
 extern crate rusty_lisp;
-use rusty_lisp::tokenize;
+use rusty_lisp::read_str;
 
 
 fn main() {
     let input = r#" ( 123 456 abc );comment"#;
-    tokenize(input)
+    read_str(input)
 }
 

@@ -1,16 +1,19 @@
 extern crate regex;
 use regex::Regex;
 use std::option::Option;
+use std::iter::*;
+use std::fmt::Debug;
 
-#[derive(Debug)]
-pub enum TOKEN<'a> {
+//@todo NO CLONNING
+#[derive(Debug, PartialEq)]
+pub enum Token<'a> {
     Char(char),
     String(&'a str),
     SpecialChars(&'a str)
 }
 
 //@todo refactor. Regex should be staticly allocated.
-fn advance(rest_input: &str) -> (usize, Option<TOKEN>) {
+fn advance(rest_input: &str) -> (usize, Option<Token>) {
     let white_characters = Regex::new(r"^([\s,])+").unwrap();
     let strings = Regex::new(r#"^"(?:\\.|[^\\"])*""#).unwrap();
     let special_character = Regex::new(r#"^[\[\]{}()'`~^@]"#).unwrap();
@@ -22,23 +25,23 @@ fn advance(rest_input: &str) -> (usize, Option<TOKEN>) {
         (matched.len(), None)
     } else if strings.is_match(rest_input) {
         let matched = strings.captures_iter(rest_input).next().unwrap().at(0).unwrap();
-        (matched.len(), Some(TOKEN::String(matched)))
+        (matched.len(), Some(Token::String(matched)))
     } else if special_character.is_match(rest_input) {
         let matched = special_character.captures_iter(rest_input).next().unwrap().at(0).unwrap();
-        (matched.len(), Some(TOKEN::Char(matched.chars().next().unwrap())))
+        (matched.len(), Some(Token::Char(matched.chars().next().unwrap())))
     } else if comment.is_match(rest_input) {
         let matched = comment.captures_iter(rest_input).next().unwrap().at(0).unwrap();
         (matched.len(), None)
     } else if special_chars.is_match(rest_input) {
         let matched = special_chars.captures_iter(rest_input).next().unwrap().at(0).unwrap();
-        (matched.len(), Some(TOKEN::SpecialChars(matched)))
+        (matched.len(), Some(Token::SpecialChars(matched)))
     } else {
         panic!("UNRECOGNIZED INPUT!");
     }
 }
 
-pub fn tokenize(input: &str) {
-    println!("tokenizing: {}", input);
+fn tokenize(input: &str) -> Vec<Token> {
+    let mut tokens = Vec::new();
     let mut rest_input = input;
 
     while rest_input.len() != 0 {
@@ -47,9 +50,87 @@ pub fn tokenize(input: &str) {
             rest_input = &rest_input[consumed..];
 
             if let Some(token) = token {
-                println!("TOKEN {:?}", token);
+                tokens.push(token);
             }
         }
     }
-    println!("tokenizing finished!")
+
+    tokens
+}
+
+trait LispSyntax : Debug {}
+type Syntax = Box<LispSyntax>;
+
+#[derive(Debug)]
+struct List {
+    children: Box<Vec<Syntax>>
+}
+impl LispSyntax for List {}
+
+//@todo copying!
+#[derive(Debug)]
+struct Symbol {
+    id: String
+}
+impl LispSyntax for Symbol{}
+
+#[derive(Debug)]
+struct Number {
+    number: i32
+}
+impl LispSyntax for Number{}
+
+fn read_list<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> where I: Iterator<Item=&'b Token<'b>> {
+    let mut list: Vec<Syntax> = Vec::new();
+
+    loop {
+        let should_end: bool = Some(&&Token::Char(')')) == reader.peek();
+
+        if should_end {
+            reader.next();
+            break;
+        } else {
+            let form: Option<Box<LispSyntax>> = read_form(reader);
+            if form.is_some() {
+                list.push(form.unwrap());
+            }
+        }
+    }
+
+    Some(Box::new(List{children: Box::new(list)}))
+}
+
+fn read_atom<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> where I: Iterator<Item=&'b Token<'b>> {
+    let current_atom = reader.next();
+
+    let symbol_regex = Regex::new("^[:alpha:]+$").unwrap();
+
+    match current_atom {
+        Some(&Token::SpecialChars(chars)) if symbol_regex.is_match(chars) => Some(Box::new(Symbol{id: chars.to_string()})),
+        Some(&Token::SpecialChars(chars)) => Some(Box::new(Number{number: (chars.parse::<i32>()).unwrap()})),
+        _ => None
+    }
+}
+
+fn read_form<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> where I: Iterator<Item=&'b Token<'b>> {
+    let is_list: bool =  Some(&&Token::Char('(')) == reader.peek();
+
+    match is_list {
+        true => {
+            reader.next();
+            read_list(reader)
+        },
+        false => read_atom(reader)
+    }
+}
+
+pub fn read_str(input: &str) {
+    println!("Input: {}", input);
+
+    let tokens = tokenize(input);
+    println!("Tokens: {:?}", tokens);
+
+    let mut reader = tokens.iter().peekable();
+    let lisp_ast = read_form(&mut reader);
+    println!("AST: {:?}", lisp_ast.unwrap());
 }

@@ -3,8 +3,8 @@ use regex::Regex;
 use std::option::Option;
 use std::iter::*;
 use std::fmt::Debug;
+use std::collections::HashMap;
 
-//@todo NO CLONNING
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
     Char(char),
@@ -58,27 +58,50 @@ fn tokenize(input: &str) -> Vec<Token> {
     tokens
 }
 
-trait LispSyntax : Debug {}
+#[derive(Debug, Clone)]
+enum LispDataType {
+    Number(i32)
+}
+
+type Environment<'a> = HashMap<&'a str, LispDataType>;
+
+trait LispSyntax : Debug {
+    fn evaluate(&self, environment: &Environment) -> LispDataType;
+}
 type Syntax = Box<LispSyntax>;
 
 #[derive(Debug)]
 struct List {
     children: Box<Vec<Syntax>>
 }
-impl LispSyntax for List {}
+
+impl LispSyntax for List {
+    fn evaluate(&self, _: &Environment) -> LispDataType {
+        return LispDataType::Number(1);
+    }
+}
 
 //@todo copying!
 #[derive(Debug)]
 struct Symbol {
     id: String
 }
-impl LispSyntax for Symbol{}
+impl LispSyntax for Symbol{
+    fn evaluate(&self, env: &Environment) -> LispDataType {
+        env.get(self.id.as_str()).unwrap().clone()
+    }
+}
+
 
 #[derive(Debug)]
 struct Number {
     number: i32
 }
-impl LispSyntax for Number{}
+impl LispSyntax for Number{
+    fn evaluate(&self, _: &Environment) -> LispDataType {
+        LispDataType::Number(self.number)
+    }
+}
 
 fn read_list<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> where I: Iterator<Item=&'b Token<'b>> {
     let mut list: Vec<Syntax> = Vec::new();
@@ -124,7 +147,7 @@ fn read_form<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> 
     }
 }
 
-pub fn read_str(input: &str) {
+pub fn run(input: &str) {
     println!("Input: {}", input);
 
     let tokens = tokenize(input);
@@ -132,5 +155,13 @@ pub fn read_str(input: &str) {
 
     let mut reader = tokens.iter().peekable();
     let lisp_ast = read_form(&mut reader);
-    println!("AST: {:?}", lisp_ast.unwrap());
+
+    let environment: Environment = HashMap::new();
+
+    let result = match lisp_ast {
+        Some(ast) => ast.evaluate(&environment),
+        None => LispDataType::Number(0)
+    };
+
+    println!("Evaluating expression: {:?}", result);
 }

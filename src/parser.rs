@@ -80,11 +80,11 @@ fn read_list<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> 
 fn read_atom<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> where I: Iterator<Item = &'b Token<'b>> {
     let current_atom = reader.next();
 
-    let symbol_regex = Regex::new("^[:alpha:]+$").unwrap();
+    let number_regex = Regex::new("^[:digit:]+$").unwrap();
 
     match current_atom {
-        Some(&Token::SpecialChars(chars)) if symbol_regex.is_match(chars) => Some(Box::new(Symbol { id: chars.to_string() })),
-        Some(&Token::SpecialChars(chars)) => Some(Box::new(Number { number: (chars.parse::<i32>()).unwrap() })),
+        Some(&Token::SpecialChars(chars)) if number_regex.is_match(chars) => Some(Box::new(Number { number: (chars.parse::<i32>()).unwrap() })),
+        Some(&Token::SpecialChars(chars)) => Some(Box::new(Symbol { id: chars.to_string() })),
         _ => None
     }
 }

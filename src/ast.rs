@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum LispDataType {
-    Number(i32)
+    Number(i32),
+    BuiltInFunction(fn(Vec<LispDataType>) -> LispDataType)
 }
 
 pub type Environment<'a> = HashMap<&'a str, LispDataType>;
 
 pub trait LispSyntax : Debug {
-    fn evaluate(&self, environment: &Environment) -> LispDataType;
+    fn evaluate<'a>(&'a self, environment: &Environment<'a>) -> LispDataType;
 }
 
 pub type Syntax = Box<LispSyntax>;
@@ -20,8 +21,14 @@ pub struct List {
 }
 
 impl LispSyntax for List {
-    fn evaluate(&self, _: &Environment) -> LispDataType {
-        return LispDataType::Number(1);
+    fn evaluate(&self, env: &Environment) -> LispDataType {
+        let evaluated: Vec<LispDataType> = self.children.iter().map(|child| child.evaluate(env)).collect();
+        let (first, tail) = (evaluated.first(), evaluated[1..].to_vec());
+
+        match first {
+            Some(&LispDataType::BuiltInFunction(fun)) => fun(tail),
+            _ => panic!("List evaluation error!")
+        }
     }
 }
 
@@ -30,7 +37,7 @@ pub struct Symbol {
     pub id: String
 }
 impl LispSyntax for Symbol{
-    fn evaluate(&self, env: &Environment) -> LispDataType {
+    fn evaluate<'a>(&'a self, env: &Environment<'a>) -> LispDataType {
         env.get(self.id.as_str()).unwrap().clone()
     }
 }

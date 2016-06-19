@@ -3,7 +3,7 @@ use rusty_lisp::run;
 
 
 fn main() {
-    let input = r#" ( + (* 2 3) 1)"#;
+    let input = r#" ( + (* 2 3) (/ 4 2))"#;
     run(input)
 }
 

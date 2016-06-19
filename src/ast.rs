@@ -1,13 +1,6 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
 
-#[derive(Clone)]
-pub enum LispDataType {
-    Number(i32),
-    BuiltInFunction(fn(Vec<LispDataType>) -> LispDataType)
-}
-
-pub type Environment<'a> = HashMap<&'a str, LispDataType>;
+use types::*;
 
 pub trait LispSyntax : Debug {
     fn evaluate<'a>(&'a self, environment: &Environment<'a>) -> LispDataType;
@@ -38,7 +31,10 @@ pub struct Symbol {
 }
 impl LispSyntax for Symbol{
     fn evaluate<'a>(&'a self, env: &Environment<'a>) -> LispDataType {
-        env.get(self.id.as_str()).unwrap().clone()
+        match env.get(self.id.as_str()) {
+            None => panic!("Symbol {} not found!", self.id.as_str()),
+            Some(data_type) => data_type.clone()
+        }
     }
 }
 

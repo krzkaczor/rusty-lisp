@@ -1,9 +1,19 @@
 extern crate rusty_lisp;
-use rusty_lisp::run;
+use rusty_lisp::LispInterpreter;
 
 
 fn main() {
-    let input = r#" ( + (* 2 3) (/ 4 2))"#;
-    run(input)
+    let program = r#"
+        (def! a 6)
+        a
+        (+ a 5)
+        (let* (c 2) c)
+    "#;
+
+    let mut interpreter = LispInterpreter::new_verbose();
+
+    println!("Result: {}", interpreter.evaluate_program(program.trim()));
 }
+
+
 

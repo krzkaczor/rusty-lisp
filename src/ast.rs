@@ -1,9 +1,13 @@
 use std::fmt::Debug;
+use std::rc::Rc;
+use std::any::Any;
+
 
 use types::*;
 
 pub trait LispSyntax : Debug {
-    fn evaluate<'a>(&'a self, environment: &Environment<'a>) -> LispDataType;
+    fn evaluate<'a>(&'a self, environment: &mut Environment) -> Rc<LispDataType>;
+    fn as_any(&self) -> &Any;
 }
 
 pub type Syntax = Box<LispSyntax>;
@@ -14,14 +18,19 @@ pub struct List {
 }
 
 impl LispSyntax for List {
-    fn evaluate(&self, env: &Environment) -> LispDataType {
-        let evaluated: Vec<LispDataType> = self.children.iter().map(|child| child.evaluate(env)).collect();
-        let (first, tail) = (evaluated.first(), evaluated[1..].to_vec());
+    fn evaluate(&self, env: &mut Environment) -> Rc<LispDataType> {
+        let (head, tail) = self.children.split_first().unwrap();
 
-        match first {
-            Some(&LispDataType::BuiltInFunction(fun)) => fun(tail),
+        let function_data_type = head.evaluate(env);
+
+        match *function_data_type {
+            LispDataType::BuiltInFunction(function) => function(env, tail),
             _ => panic!("List evaluation error!")
         }
+    }
+
+    fn as_any(&self) -> &Any {
+        self
     }
 }
 
@@ -30,11 +39,15 @@ pub struct Symbol {
     pub id: String
 }
 impl LispSyntax for Symbol{
-    fn evaluate<'a>(&'a self, env: &Environment<'a>) -> LispDataType {
+    fn evaluate<'a>(&'a self, env: &mut Environment) -> Rc<LispDataType> {
         match env.get(self.id.as_str()) {
             None => panic!("Symbol {} not found!", self.id.as_str()),
-            Some(data_type) => data_type.clone()
+            Some(data_type) => data_type
         }
+    }
+
+    fn as_any(&self) -> &Any {
+        self
     }
 }
 
@@ -43,8 +56,12 @@ impl LispSyntax for Symbol{
 pub struct Number {
     pub number: i32
 }
-impl LispSyntax for Number{
-    fn evaluate(&self, _: &Environment) -> LispDataType {
-        LispDataType::Number(self.number)
+impl LispSyntax for Number {
+    fn evaluate(&self, _: &mut Environment) -> Rc<LispDataType> {
+        Rc::new(LispDataType::Number(self.number))
+    }
+
+    fn as_any(&self) -> &Any {
+        self
     }
 }

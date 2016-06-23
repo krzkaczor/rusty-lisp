@@ -91,14 +91,12 @@ fn read_atom<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> 
 }
 
 fn read_form<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> where I: Iterator<Item = &'b Token<'b>> {
-    let is_list: bool = Some(&&Token::Char('(')) == reader.peek();
-
-    match is_list {
-        true => {
+    match reader.peek() {
+        Some(&&Token::Char('(')) => {
             reader.next();
             read_list(reader)
         },
-        false => read_atom(reader)
+        _ => read_atom(reader)
     }
 }
 

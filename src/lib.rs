@@ -7,22 +7,26 @@ mod parser;
 mod types;
 
 pub struct LispInterpreter {
-    environment: types::Environment,
-    verbose: bool
+    environment: types::Environment
+}
+
+fn result_to_string(result: Rc<types::LispDataType>) -> String {
+    match *result {
+        types::LispDataType::Number(number) => number.to_string(),
+        types::LispDataType::Boolean(true) => "t".to_string(),
+        types::LispDataType::Boolean(false) => "f".to_string(),
+        types::LispDataType::Void => "()".to_string(),
+        _ => panic!("Unknown result!")
+    }
 }
 
 impl LispInterpreter {
     pub fn new() -> LispInterpreter {
         let environment = types::get_environment();
-        LispInterpreter { environment: environment, verbose: false }
+        LispInterpreter { environment: environment }
     }
 
-    pub fn new_verbose() -> LispInterpreter {
-        let environment = types::get_environment();
-        LispInterpreter { environment: environment, verbose: true }
-    }
-
-    pub fn evaluate(&mut self, input: &str) -> i32 {
+    pub fn evaluate(&mut self, input: &str) -> String {
         let ast = parser::parse(input);
 
         let result = match ast {
@@ -30,25 +34,9 @@ impl LispInterpreter {
             None => Rc::new(types::LispDataType::Number(0))
         };
 
-        let result = match *result {
-            types::LispDataType::Number(result) => result,
-            _ => panic!("Unknown result!")
-        };
+        let result_string = result_to_string(result);
 
-        if self.verbose {
-            println!("{} -> {}", input, result);
-        }
-
-        result
-    }
-
-    pub fn evaluate_program(&mut self, program: &str) -> i32 {
-        let mut last_result = 0;
-        for line in program.lines() {
-            last_result = self.evaluate(line.trim())
-        }
-
-        last_result
+        result_string
     }
 }
 
@@ -60,10 +48,30 @@ mod tests {
     fn it_works() {
         let mut interpreter = LispInterpreter::new();
 
-        assert_eq!(0, interpreter.evaluate("(def! a 6)"));
-        assert_eq!(6, interpreter.evaluate("a"));
-        assert_eq!(11, interpreter.evaluate("(+ a 5)"));
-        assert_eq!(36, interpreter.evaluate("(* a a)"));
-        assert_eq!(2, interpreter.evaluate("(let* (c 2) c)"));
+        assert_eq!("0", interpreter.evaluate("(def! a 6)"));
+        assert_eq!("6", interpreter.evaluate("a"));
+        assert_eq!("11", interpreter.evaluate("(+ a 5)"));
+        assert_eq!("36", interpreter.evaluate("(* a a)"));
+        assert_eq!("2", interpreter.evaluate("(let* (c 2) c)"));
+        assert_eq!("t", interpreter.evaluate("(= 4 4)"));
+        assert_eq!("1", interpreter.evaluate("(if (= a 6) 1 2)"));
+        assert_eq!("2", interpreter.evaluate("(if (= 1 2) 1 2)"));
+        assert_eq!("()", interpreter.evaluate("(print (if (= a 6) \"True\" \"False\"))"));
+    }
+
+    #[test]
+    fn string_eqality() {
+        let mut interpreter = LispInterpreter::new();
+        interpreter.evaluate("(def! a \"abc\")");
+        assert_eq!("t", interpreter.evaluate("(= a \"abc\")"));
+        assert_eq!("f", interpreter.evaluate("(= a \"abcd\")"));
+    }
+
+    #[test]
+    fn symbol_case_insensitivity() {
+        let mut interpreter = LispInterpreter::new();
+        interpreter.evaluate("(def! someString \"abc\")");
+        assert_eq!("t", interpreter.evaluate("(= somestring \"abc\")"));
+        assert_eq!("t", interpreter.evaluate("(= someString \"abc\")"));
     }
 }

@@ -5,7 +5,10 @@ use ast::*;
 
 pub enum LispDataType {
     Number(i32),
-    BuiltInFunction(fn(&mut Environment, &[Syntax]) -> Rc<LispDataType>)
+    String(String),
+    BuiltInFunction(fn(&mut Environment, &[Syntax]) -> Rc<LispDataType>),
+    Boolean(bool),
+    Void
 }
 
 pub type Scope = HashMap<String, Rc<LispDataType>>;
@@ -124,6 +127,46 @@ fn def(env: &mut Environment, raw_args: &[Syntax]) -> Rc<LispDataType> {
     env.set(symbol_name, args.get(0).unwrap().clone());
     Rc::new(LispDataType::Number(0))
 }
+
+fn equal(env: &mut Environment, raw_args: &[Syntax]) -> Rc<LispDataType> {
+    let args: Vec<Rc<LispDataType>> = raw_args.iter().map(|child| child.evaluate(env)).collect();
+    assert!(args.len() == 2);
+
+    let first = args.get(0).unwrap();
+    let second = args.get(1).unwrap();
+
+
+    match (&**first, &**second) {
+        (&LispDataType::Number(ref a), &LispDataType::Number(ref b)) if a == b => Rc::new(LispDataType::Boolean(true)),
+        (&LispDataType::String(ref a), &LispDataType::String(ref b)) if a == b => Rc::new(LispDataType::Boolean(true)),
+        _ => Rc::new(LispDataType::Boolean(false))
+    }
+}
+
+fn if_function(env: &mut Environment, raw_args: &[Syntax]) -> Rc<LispDataType> {
+    let condition = raw_args.first().unwrap().evaluate(env);
+    let true_branch = raw_args.get(1);
+    let false_branch = raw_args.get(2);
+
+    match *condition {
+        LispDataType::Boolean(false) if false_branch.is_some() => false_branch.unwrap().evaluate(env),
+        LispDataType::Boolean(false) => Rc::new(LispDataType::Void),
+        _ => true_branch.unwrap().evaluate(env)
+    }
+}
+
+fn print(env: &mut Environment, raw_args: &[Syntax]) -> Rc<LispDataType> {
+    let entity = raw_args.first().unwrap().evaluate(env);
+
+    match *entity {
+        LispDataType::String(ref value) => println!("{}", value),
+        LispDataType::Number(ref value) => println!("{}", value),
+        _ => panic!("Cannot print.")
+    };
+
+    Rc::new(LispDataType::Void)
+}
+
 pub fn get_environment() -> Environment {
     let mut environment = HashMap::new();
     environment.insert("+".to_string(), Rc::new(LispDataType::BuiltInFunction(plus)));
@@ -132,6 +175,9 @@ pub fn get_environment() -> Environment {
     environment.insert("/".to_string(), Rc::new(LispDataType::BuiltInFunction(divide)));
     environment.insert("def!".to_string(), Rc::new(LispDataType::BuiltInFunction(def)));
     environment.insert("let*".to_string(), Rc::new(LispDataType::BuiltInFunction(let_binding)));
+    environment.insert("=".to_string(), Rc::new(LispDataType::BuiltInFunction(equal)));
+    environment.insert("if".to_string(), Rc::new(LispDataType::BuiltInFunction(if_function)));
+    environment.insert("print".to_string(), Rc::new(LispDataType::BuiltInFunction(print)));
 
     Environment::new(environment)
 }

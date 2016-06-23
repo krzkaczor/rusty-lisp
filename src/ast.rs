@@ -41,7 +41,7 @@ pub struct Symbol {
 impl LispSyntax for Symbol{
     fn evaluate<'a>(&'a self, env: &mut Environment) -> Rc<LispDataType> {
         match env.get(self.id.as_str()) {
-            None => panic!("Symbol {} not found!", self.id.as_str()),
+            None => panic!("Symbol \"{}\" not found!", self.id.as_str()),
             Some(data_type) => data_type
         }
     }
@@ -59,6 +59,20 @@ pub struct Number {
 impl LispSyntax for Number {
     fn evaluate(&self, _: &mut Environment) -> Rc<LispDataType> {
         Rc::new(LispDataType::Number(self.number))
+    }
+
+    fn as_any(&self) -> &Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct Chars {
+    pub string: String
+}
+impl LispSyntax for Chars {
+    fn evaluate(&self, _: &mut Environment) -> Rc<LispDataType> {
+        Rc::new(LispDataType::String(self.string.clone()))
     }
 
     fn as_any(&self) -> &Any {

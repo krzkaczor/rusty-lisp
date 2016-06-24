@@ -8,11 +8,13 @@ pub enum LispDataType {
     String(String),
     BuiltInFunction(fn(&mut Environment, &[Syntax]) -> Rc<LispDataType>),
     Boolean(bool),
+    Function(Vec<String>, Syntax),
     Void
 }
 
 pub type Scope = HashMap<String, Rc<LispDataType>>;
 
+#[derive(Clone)]
 pub struct Environment {
     scopes: LinkedList<Scope>,
 }
@@ -125,7 +127,7 @@ fn def(env: &mut Environment, raw_args: &[Syntax]) -> Rc<LispDataType> {
     let args: Vec<Rc<LispDataType>> = raw_args_iterator.map(|child| child.evaluate(env)).collect();
 
     env.set(symbol_name, args.get(0).unwrap().clone());
-    Rc::new(LispDataType::Number(0))
+    Rc::new(LispDataType::Void)
 }
 
 fn equal(env: &mut Environment, raw_args: &[Syntax]) -> Rc<LispDataType> {
@@ -167,6 +169,18 @@ fn print(env: &mut Environment, raw_args: &[Syntax]) -> Rc<LispDataType> {
     Rc::new(LispDataType::Void)
 }
 
+fn function_declaration(_: &mut Environment, raw_args: &[Syntax]) -> Rc<LispDataType> {
+    let mut args_iter = raw_args.into_iter();
+
+    let args_list = args_iter.next().as_ref().unwrap().as_any().downcast_ref::<List>().expect("Argument to be list");
+
+    let args_names = args_list.children.iter().map(|arg| arg.as_any().downcast_ref::<Symbol>().expect("Arguments must be symbols!").id.clone()).collect();
+
+    let body = (*args_iter.next().expect("Function must have a body!")).clone();
+
+    Rc::new(LispDataType::Function(args_names, body))
+}
+
 pub fn get_environment() -> Environment {
     let mut environment = HashMap::new();
     environment.insert("+".to_string(), Rc::new(LispDataType::BuiltInFunction(plus)));
@@ -178,6 +192,7 @@ pub fn get_environment() -> Environment {
     environment.insert("=".to_string(), Rc::new(LispDataType::BuiltInFunction(equal)));
     environment.insert("if".to_string(), Rc::new(LispDataType::BuiltInFunction(if_function)));
     environment.insert("print".to_string(), Rc::new(LispDataType::BuiltInFunction(print)));
+    environment.insert("fn*".to_string(), Rc::new(LispDataType::BuiltInFunction(function_declaration)));
 
     Environment::new(environment)
 }

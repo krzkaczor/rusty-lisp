@@ -3,6 +3,7 @@ use regex::Regex;
 use std::option::Option;
 use std::iter::*;
 use ast::*;
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
@@ -57,42 +58,42 @@ fn tokenize(input: &str) -> Vec<Token> {
     tokens
 }
 
-fn read_list<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> where I: Iterator<Item = &'b Token<'b>> {
+fn read_list<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Syntax> where I: Iterator<Item = &'b Token<'b>> {
     let mut list: Vec<Syntax> = Vec::new();
 
     loop {
-        let should_end: bool = Some(&&Token::Char(')')) == reader.peek();
+        let should_end: bool = Some(&&Token::Char(')')) == reader.peek()  || Some(&&Token::Char(']')) == reader.peek();
 
         if should_end {
             reader.next();
             break;
         } else {
-            let form: Option<Box<LispSyntax>> = read_form(reader);
+            let form: Option<Syntax> = read_form(reader);
             if form.is_some() {
                 list.push(form.unwrap());
             }
         }
     }
 
-    Some(Box::new(List { children: Box::new(list) }))
+    Some(Rc::new(List { children: Box::new(list) }))
 }
 
-fn read_atom<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> where I: Iterator<Item = &'b Token<'b>> {
+fn read_atom<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Syntax> where I: Iterator<Item = &'b Token<'b>> {
     let current_atom = reader.next();
 
     let number_literal_regex = Regex::new("^[:digit:]+$").unwrap();
 
     match current_atom {
-        Some(&Token::SpecialChars(chars)) if number_literal_regex.is_match(chars) => Some(Box::new(Number { number: (chars.parse::<i32>()).unwrap() })),
-        Some(&Token::SpecialChars(chars)) => Some(Box::new(Symbol { id: chars.to_lowercase().to_string() })),
-        Some(&Token::String(chars)) => Some(Box::new(Chars { string: String::from(chars) })),
+        Some(&Token::SpecialChars(chars)) if number_literal_regex.is_match(chars) => Some(Rc::new(Number { number: (chars.parse::<i32>()).unwrap() })),
+        Some(&Token::SpecialChars(chars)) => Some(Rc::new(Symbol { id: chars.to_lowercase().to_string() })),
+        Some(&Token::String(chars)) => Some(Rc::new(Chars { string: String::from(chars) })),
         _ => None
     }
 }
 
-fn read_form<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> where I: Iterator<Item = &'b Token<'b>> {
+fn read_form<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Syntax> where I: Iterator<Item = &'b Token<'b>> {
     match reader.peek() {
-        Some(&&Token::Char('(')) => {
+        Some(&&Token::Char('(')) | Some(&&Token::Char('[')) => {
             reader.next();
             read_list(reader)
         },
@@ -100,7 +101,7 @@ fn read_form<'a, 'b, I>(reader: &'a mut Peekable<I>) -> Option<Box<LispSyntax>> 
     }
 }
 
-pub fn parse(input: &str) -> Option<Box<LispSyntax>> {
+pub fn parse(input: &str) -> Option<Syntax> {
     let tokens = tokenize(input);
 
     let mut reader = tokens.iter().peekable();

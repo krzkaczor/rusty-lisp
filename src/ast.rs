@@ -2,15 +2,15 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use std::any::Any;
 
-
 use types::*;
 
+// note to self: making it trait instead of enum was worst design decision ever
 pub trait LispSyntax : Debug {
     fn evaluate<'a>(&'a self, environment: &mut Environment) -> Rc<LispDataType>;
     fn as_any(&self) -> &Any;
 }
 
-pub type Syntax = Box<LispSyntax>;
+pub type Syntax = Rc<LispSyntax>;
 
 #[derive(Debug)]
 pub struct List {
@@ -25,6 +25,22 @@ impl LispSyntax for List {
 
         match *function_data_type {
             LispDataType::BuiltInFunction(function) => function(env, tail),
+            LispDataType::Function(ref args, ref body) => {
+                env.push_scope();
+
+                let pairs: Vec<(&String, Rc<LispDataType>)> = {
+                    args.iter().zip(tail.iter().map(|e| e.evaluate(env))).collect()
+                };
+
+                for (name, value) in pairs {
+                    env.set(name.to_string(), value);
+                }
+
+                let res = body.evaluate(env);
+                env.pop_scope();
+
+                res
+            },
             _ => panic!("List evaluation error!")
         }
     }

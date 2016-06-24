@@ -16,6 +16,7 @@ fn result_to_string(result: Rc<types::LispDataType>) -> String {
         types::LispDataType::Boolean(true) => "t".to_string(),
         types::LispDataType::Boolean(false) => "f".to_string(),
         types::LispDataType::Void => "()".to_string(),
+        types::LispDataType::String(ref str) => str.clone(),
         _ => panic!("Unknown result!")
     }
 }
@@ -73,5 +74,13 @@ mod tests {
         interpreter.evaluate("(def! someString \"abc\")");
         assert_eq!("t", interpreter.evaluate("(= somestring \"abc\")"));
         assert_eq!("t", interpreter.evaluate("(= someString \"abc\")"));
+    }
+
+    #[test]
+    fn function_closures() {
+        let mut interpreter = LispInterpreter::new();
+        interpreter.evaluate("(def! id (fn* [a] a))");
+        assert_eq!(r#""identity function""#, interpreter.evaluate(r#"(id "identity function")"#));
+        assert_eq!(r#"5"#, interpreter.evaluate(r#"((fn* [a b] (+ a b)) 2 3)"#));
     }
 }
